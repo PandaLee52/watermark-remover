@@ -1,13 +1,6 @@
-{
-    "name": "watermark-remover-api",
-    "builder": "python",
-    "buildCommand": "pip install -r requirements.txt",
-    "startCommand": "gunicorn backend.app:app --bind 0.0.0.0:$PORT",
-    "env": {
-        "PORT": {
-            "value": "5000"
-        }
-    },
-    "regions": ["singapore"],
-    "pythonVersion": "3.11"
-}
+services:
+  - type: web
+    name: watermark-remover-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
