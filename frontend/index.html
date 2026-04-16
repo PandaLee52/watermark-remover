@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>去字幕/去水印工具</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+        }
+        
+        header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+        
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .video-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .video-player {
+            width: 100%;
+            display: block;
+        }
+        
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+        
+        .upload-area {
+            border: 2px dashed #00d9ff;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(0,217,255,0.05);
+        }
+        
+        .upload-area:hover {
+            background: rgba(0,217,255,0.1);
+            border-color: #00ff88;
+        }
+        
+        .upload-area.dragover {
+            background: rgba(0,255,136,0.2);
+            border-color: #00ff88;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            font-size: 1.1rem;
+            color: #ccc;
+        }
+        
+        .upload-hint {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .control-panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-section {
+            margin-bottom: 25px;
+        }
+        
+        .control-section h3 {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            color: #00d9ff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d9ff, #0099ff);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,217,255,0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,255,136,0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+            color: #fff;
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,107,107,0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .regions-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .region-item {
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .region-info {
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+        
+        .region-delete {
+            background: none;
+            border: none;
+            color: #ff6b6b;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            transition: width 0.3s;
+        }
+        
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        
+        .video-info {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .video-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 0.85rem;
+        }
+        
+        .video-info-label {
+            color: #888;
+        }
+        
+        .video-info-value {
+            color: #00d9ff;
+        }
+        
+        .instructions {
+            background: rgba(0,217,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+            padding-left: 5px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .status-badge.processing {
+            background: rgba(255,193,7,0.2);
+            color: #ffc107;
+        }
+        
+        .status-badge.completed {
+            background: rgba(0,255,136,0.2);
+            color: #00ff88;
+        }
+        
+        .mode-indicator {
+            text-align: center;
+            padding: 10px;
+            background: rgba(0,217,255,0.1);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .mode-indicator span {
+            color: #00ff88;
+            font-weight: bold;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <header>
+                <h1>🎬 去字幕/去水印工具</h1>
+                <p>智能检测 + 手动框选，轻松去除视频水印和字幕</p>
+            </header>
+            
+            <div class="main-content">
+                <div class="video-section">
+                    <!-- 上传区域 -->
+                    <div 
+                        class="upload-area" 
+                        :class="{dragover: isDragover}"
+                        @click="triggerUpload"
+                        @dragover.prevent="isDragover = true"
+                        @dragleave="isDragover = false"
+                        @drop.prevent="handleDrop"
+                        v-if="!videoUrl"
+                    >
+                        <div class="upload-icon">📤</div>
+                        <div class="upload-text">点击或拖拽上传视频</div>
+                        <div class="upload-hint">支持 MP4, AVI, MOV 格式，最大 500MB</div>
+                        <input 
+                            type="file" 
+                            ref="fileInput" 
+                            @change="handleFileSelect" 
+                            accept="video/*"
+                            style="display:none"
+                        >
+                    </div>
+                    
+                    <!-- 视频预览区域 -->
+                    <div class="video-container" v-if="videoUrl">
+                        <video 
+                            ref="videoPlayer"
+                            class="video-player" 
+                            :src="videoUrl"
+                            @loadedmetadata="onVideoLoaded"
+                            controls
+                        ></video>
+                        <canvas 
+                            ref="canvasOverlay"
+                            class="canvas-overlay"
+                            @mousedown="startDraw"
+                            @mousemove="draw"
+                            @mouseup="endDraw"
+                            @mouseleave="endDraw"
+                        ></canvas>
+                    </div>
+                    
+                    <!-- 视频信息 -->
+                    <div class="video-info" v-if="videoInfo.width">
+                        <div class="video-info-item">
+                            <span class="video-info-label">分辨率</span>
+                            <span class="video-info-value">{{ videoInfo.width }} × {{ videoInfo.height }}</span>
+                        </div>
+                        <div class="video-info-item">
+                            <span class="video-info-label">时长</span>
+                            <span class="video-info-value">{{ formatDuration(videoInfo.duration) }}</span>
+                        </div>
+                        <div class="video-info-item">
+                            <span class="video-info-label">帧率</span>
+                            <span class="video-info-value">{{ videoInfo.fps?.toFixed(2) }} fps</span>
+                        </div>
+                        <div class="video-info-item">
+                            <span class="video-info-label">文件大小</span>
+                            <span class="video-info-value">{{ formatSize(videoInfo.size) }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作说明 -->
+                    <div class="instructions" v-if="videoUrl">
+                        <h4>📌 使用说明</h4>
+                        <ul>
+                            <li><strong>框选模式</strong>：在视频上拖动鼠标框选要去除的区域</li>
+                            <li><strong>智能检测</strong>：自动识别常见水印/字幕位置</li>
+                            <li>可以框选多个区域，然后一次性处理</li>
+                            <li>处理完成后点击"下载视频"保存</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- 进度条 -->
+                    <div v-if="isProcessing">
+                        <div class="progress-bar">
+                            <div class="progress-fill" :style="{width: progress + '%'}"></div>
+                        </div>
+                        <div class="progress-text">{{ progressText }}</div>
+                    </div>
+                </div>
+                
+                <div class="control-panel">
+                    <div class="mode-indicator">
+                        当前模式：<span>{{ currentMode === 'box' ? '框选模式' : '智能检测' }}</span>
+                    </div>
+                    
+                    <!-- 上传控制 -->
+                    <div class="control-section" v-if="!videoUrl">
+                        <button class="btn btn-primary" @click="triggerUpload" style="width:100%">
+                            📤 选择视频文件
+                        </button>
+                    </div>
+                    
+                    <!-- 已上传后的控制 -->
+                    <template v-if="videoUrl && taskId">
+                        <!-- 智能检测 -->
+                        <div class="control-section">
+                            <h3>🔍 智能检测</h3>
+                            <button 
+                                class="btn btn-primary" 
+                                @click="detectWatermarks"
+                                :disabled="isProcessing"
+                                style="width:100%"
+                            >
+                                自动检测水印/字幕
+                            </button>
+                        </div>
+                        
+                        <!-- 框选列表 -->
+                        <div class="control-section">
+                            <h3>📦 已框选区域 ({{ regions.length }})</h3>
+                            <div class="regions-list" v-if="regions.length > 0">
+                                <div 
+                                    class="region-item" 
+                                    v-for="(region, index) in regions" 
+                                    :key="index"
+                                >
+                                    <span class="region-info">
+                                        区域 {{ index + 1 }}: {{ region[0] }}, {{ region[1] }} → {{ region[2] }}, {{ region[3] }}
+                                    </span>
+                                    <button class="region-delete" @click="removeRegion(index)">×</button>
+                                </div>
+                            </div>
+                            <div v-else style="color:#666;font-size:0.85rem;text-align:center;padding:20px;">
+                                暂无框选区域<br>
+                                <small>在视频上拖动鼠标框选</small>
+                            </div>
+                        </div>
+                        
+                        <!-- 清除所有 -->
+                        <div class="control-section" v-if="regions.length > 0">
+                            <button class="btn btn-danger" @click="clearRegions" style="width:100%">
+                                🗑️ 清除所有区域
+                            </button>
+                        </div>
+                        
+                        <!-- 处理按钮 -->
+                        <div class="control-section">
+                            <button 
+                                class="btn btn-success" 
+                                @click="removeWatermarks"
+                                :disabled="isProcessing || regions.length === 0"
+                                style="width:100%;font-size:1rem;padding:15px;"
+                            >
+                                ✨ 开始去除水印
+                            </button>
+                        </div>
+                        
+                        <!-- 下载按钮 -->
+                        <div class="control-section" v-if="isCompleted">
+                            <a 
+                                :href="downloadUrl" 
+                                class="btn btn-success" 
+                                download
+                                style="width:100%;justify-content:center;font-size:1rem;padding:15px;text-decoration:none;"
+                            >
+                                📥 下载处理后的视频
+                            </a>
+                        </div>
+                        
+                        <!-- 重新开始 -->
+                        <div class="control-section">
+                            <button 
+                                class="btn btn-primary" 
+                                @click="resetAll"
+                                style="width:100%"
+                            >
+                                🔄 处理新视频
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+        
+        const API_BASE = 'https://watermark-remover-api.onrender.com';
+        
+        createApp({
+            setup() {
+                // 响应式数据
+                const fileInput = ref(null);
+                const videoPlayer = ref(null);
+                const canvasOverlay = ref(null);
+                
+                const isDragover = ref(false);
+                const isProcessing = ref(false);
+                const isCompleted = ref(false);
+                const progress = ref(0);
+                const progressText = ref('处理中...');
+                
+                const videoUrl = ref(null);
+                const videoFile = ref(null);
+                const videoInfo = ref({});
+                const taskId = ref(null);
+                const regions = ref([]);
+                
+                const currentMode = ref('box');
+                
+                // 绘图状态
+                let isDrawing = false;
+                let startX = 0;
+                let startY = 0;
+                
+                // 计算属性
+                const downloadUrl = computed(() => `${API_BASE}/download/${taskId.value}`);
+                
+                // 方法
+                const triggerUpload = () => {
+                    fileInput.value?.click();
+                };
+                
+                const handleFileSelect = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        processVideoFile(file);
+                    }
+                };
+                
+                const handleDrop = (e) => {
+                    isDragover.value = false;
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.type.startsWith('video/')) {
+                        processVideoFile(file);
+                    }
+                };
+                
+                const processVideoFile = async (file) => {
+                    videoFile.value = file;
+                    videoUrl.value = URL.createObjectURL(file);
+                    
+                    // 上传到服务器
+                    const formData = new FormData();
+                    formData.append('video', file);
+                    
+                    try {
+                        const response = await fetch(`${API_BASE}/upload`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            taskId.value = data.task_id;
+                            videoInfo.value = data.video_info;
+                        } else {
+                            alert('上传失败: ' + data.error);
+                        }
+                    } catch (error) {
+                        console.error('Upload error:', error);
+                        alert('上传失败，请检查网络连接');
+                    }
+                };
+                
+                const onVideoLoaded = () => {
+                    nextTick(() => {
+                        setupCanvas();
+                    });
+                };
+                
+                const setupCanvas = () => {
+                    const video = videoPlayer.value;
+                    const canvas = canvasOverlay.value;
+                    
+                    if (!video || !canvas) return;
+                    
+                    // 设置canvas尺寸与视频一致
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    // 绘制已有区域
+                    redrawRegions();
+                };
+                
+                const redrawRegions = () => {
+                    const canvas = canvasOverlay.value;
+                    if (!canvas) return;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // 绘制每个区域
+                    regions.value.forEach(region => {
+                        const [x1, y1, x2, y2] = region;
+                        
+                        // 半透明填充
+                        ctx.fillStyle = 'rgba(0, 255, 136, 0.2)';
+                        ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+                        
+                        // 边框
+                        ctx.strokeStyle = '#00ff88';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+                    });
+                };
+                
+                const getCanvasCoords = (e) => {
+                    const canvas = canvasOverlay.value;
+                    const rect = canvas.getBoundingClientRect();
+                    
+                    // 计算缩放比例
+                    const scaleX = canvas.width / rect.width;
+                    const scaleY = canvas.height / rect.height;
+                    
+                    return {
+                        x: (e.clientX - rect.left) * scaleX,
+                        y: (e.clientY - rect.top) * scaleY
+                    };
+                };
+                
+                const startDraw = (e) => {
+                    if (isProcessing.value) return;
+                    
+                    isDrawing = true;
+                    const coords = getCanvasCoords(e);
+                    startX = coords.x;
+                    startY = coords.y;
+                };
+                
+                const draw = (e) => {
+                    if (!isDrawing) return;
+                    
+                    const coords = getCanvasCoords(e);
+                    const canvas = canvasOverlay.value;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 重绘
+                    redrawRegions();
+                    
+                    // 绘制当前矩形
+                    ctx.fillStyle = 'rgba(0, 217, 255, 0.3)';
+                    ctx.fillRect(startX, startY, coords.x - startX, coords.y - startY);
+                    
+                    ctx.strokeStyle = '#00d9ff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(startX, startY, coords.x - startX, coords.y - startY);
+                };
+                
+                const endDraw = (e) => {
+                    if (!isDrawing) return;
+                    isDrawing = false;
+                    
+                    const coords = getCanvasCoords(e);
+                    
+                    // 计算矩形区域
+                    let x1 = Math.min(startX, coords.x);
+                    let y1 = Math.min(startY, coords.y);
+                    let x2 = Math.max(startX, coords.x);
+                    let y2 = Math.max(startY, coords.y);
+                    
+                    // 忽略太小的区域
+                    if (x2 - x1 > 10 && y2 - y1 > 5) {
+                        regions.value.push([Math.round(x1), Math.round(y1), Math.round(x2), Math.round(y2)]);
+                    }
+                    
+                    redrawRegions();
+                };
+                
+                const removeRegion = (index) => {
+                    regions.value.splice(index, 1);
+                    redrawRegions();
+                };
+                
+                const clearRegions = () => {
+                    regions.value = [];
+                    redrawRegions();
+                };
+                
+                const detectWatermarks = async () => {
+                    if (!taskId.value) return;
+                    
+                    isProcessing.value = true;
+                    progress.value = 30;
+                    progressText.value = '正在检测水印/字幕...';
+                    
+                    try {
+                        const response = await fetch(`${API_BASE}/detect`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ task_id: taskId.value })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            // 添加检测到的区域
+                            if (data.regions && data.regions.length > 0) {
+                                // 缩放区域以匹配canvas
+                                const scaleX = canvasOverlay.value?.width / videoInfo.value.width || 1;
+                                const scaleY = canvasOverlay.value?.height / videoInfo.value.height || 1;
+                                
+                                data.regions.forEach(region => {
+                                    regions.value.push([
+                                        Math.round(region[0] * scaleX),
+                                        Math.round(region[1] * scaleY),
+                                        Math.round(region[2] * scaleX),
+                                        Math.round(region[3] * scaleY)
+                                    ]);
+                                });
+                                
+                                redrawRegions();
+                            }
+                            
+                            progress.value = 100;
+                            progressText.value = `检测完成，找到 ${data.count} 个区域`;
+                            
+                            setTimeout(() => {
+                                isProcessing.value = false;
+                            }, 1500);
+                        } else {
+                            throw new Error(data.error);
+                        }
+                    } catch (error) {
+                        console.error('Detect error:', error);
+                        alert('检测失败: ' + error.message);
+                        isProcessing.value = false;
+                    }
+                };
+                
+                const removeWatermarks = async () => {
+                    if (!taskId.value || regions.value.length === 0) return;
+                    
+                    isProcessing.value = true;
+                    isCompleted.value = false;
+                    progress.value = 10;
+                    progressText.value = '正在去除水印/字幕...';
+                    
+                    try {
+                        // 缩放区域以匹配原始视频分辨率
+                        const scaleX = videoInfo.value.width / canvasOverlay.value?.width || 1;
+                        const scaleY = videoInfo.value.height / canvasOverlay.value?.height || 1;
+                        
+                        const scaledRegions = regions.value.map(region => [
+                            Math.round(region[0] * scaleX),
+                            Math.round(region[1] * scaleY),
+                            Math.round(region[2] * scaleX),
+                            Math.round(region[3] * scaleY)
+                        ]);
+                        
+                        progress.value = 30;
+                        
+                        const response = await fetch(`${API_BASE}/remove`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                task_id: taskId.value,
+                                regions: scaledRegions
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            progress.value = 80;
+                            progressText.value = '处理完成，准备下载...';
+                            
+                            isCompleted.value = true;
+                            progress.value = 100;
+                            progressText.value = '处理完成！可以下载了';
+                            
+                            setTimeout(() => {
+                                isProcessing.value = false;
+                            }, 1000);
+                        } else {
+                            throw new Error(data.error);
+                        }
+                    } catch (error) {
+                        console.error('Remove error:', error);
+                        alert('处理失败: ' + error.message);
+                        isProcessing.value = false;
+                    }
+                };
+                
+                const resetAll = () => {
+                    videoUrl.value = null;
+                    videoFile.value = null;
+                    videoInfo.value = {};
+                    taskId.value = null;
+                    regions.value = [];
+                    isProcessing.value = false;
+                    isCompleted.value = false;
+                    progress.value = 0;
+                    
+                    if (fileInput.value) {
+                        fileInput.value.value = '';
+                    }
+                };
+                
+                const formatDuration = (seconds) => {
+                    if (!seconds) return '0:00';
+                    const mins = Math.floor(seconds / 60);
+                    const secs = Math.floor(seconds % 60);
+                    return `${mins}:${secs.toString().padStart(2, '0')}`;
+                };
+                
+                const formatSize = (bytes) => {
+                    if (!bytes) return '0 B';
+                    const units = ['B', 'KB', 'MB', 'GB'];
+                    let size = bytes;
+                    let unitIndex = 0;
+                    while (size > 1024 && unitIndex < units.length - 1) {
+                        size /= 1024;
+                        unitIndex++;
+                    }
+                    return `${size.toFixed(1)} ${units[unitIndex]}`;
+                };
+                
+                return {
+                    fileInput,
+                    videoPlayer,
+                    canvasOverlay,
+                    
+                    isDragover,
+                    isProcessing,
+                    isCompleted,
+                    progress,
+                    progressText,
+                    
+                    videoUrl,
+                    videoFile,
+                    videoInfo,
+                    taskId,
+                    regions,
+                    
+                    currentMode,
+                    
+                    downloadUrl,
+                    
+                    triggerUpload,
+                    handleFileSelect,
+                    handleDrop,
+                    onVideoLoaded,
+                    startDraw,
+                    draw,
+                    endDraw,
+                    removeRegion,
+                    clearRegions,
+                    detectWatermarks,
+                    removeWatermarks,
+                    resetAll,
+                    formatDuration,
+                    formatSize
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
