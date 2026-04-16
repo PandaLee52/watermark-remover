@@ -28,4 +28,4 @@ EXPOSE 5000
 ENV PORT=5000
 
 # 启动命令
-CMD ["gunicorn", "backend.app:app", "--bind", "0.0.0.0:5000"]
+CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:5000"]
