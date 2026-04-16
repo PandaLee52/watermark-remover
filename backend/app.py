@@ -2,9 +2,14 @@
 Flask Backend for Watermark/Subtitle Remover
 """
 import os
+import sys
 import uuid
 import logging
 from pathlib import Path
+
+# 添加 backend 目录到 Python 路径
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import subprocess
