@@ -1,10 +1,8 @@
 [phases.setup]
+nixPkgs = ["ffmpeg"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
-
-[phases.build]
-cmds = ["echo 'Build complete'"]
 
 [start]
 cmd = "gunicorn backend.app:app --bind 0.0.0.0:$PORT"
