@@ -323,7 +323,30 @@
             <header>
                 <h1>🎬 去字幕/去水印工具</h1>
                 <p>智能检测 + 手动框选，轻松去除视频水印和字幕</p>
+                <div style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 15px;">
+                    <span :style="{color: apiConnected ? '#00ff88' : '#ff6b6b', fontSize: '0.85rem'}">
+                        {{ apiConnected ? '● 后端已连接' : '○ 后端未连接' }}
+                    </span>
+                    <button @click="showApiConfig = true" style="background: rgba(0,217,255,0.2); border: 1px solid #00d9ff; color: #00d9ff; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 0.85rem;">
+                        ⚙️ 配置API
+                    </button>
+                </div>
             </header>
+            
+            <!-- API配置弹窗 -->
+            <div v-if="showApiConfig" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+                <div style="background: #1a1a2e; padding: 30px; border-radius: 16px; max-width: 500px; width: 90%;">
+                    <h3 style="margin-bottom: 20px; color: #00d9ff;">配置后端API地址</h3>
+                    <input v-model="apiBaseUrl" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0a0a15; color: #fff; font-size: 14px;" placeholder="https://your-api.onrender.com">
+                    <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                        <button @click="showApiConfig = false" style="padding: 10px 20px; border-radius: 8px; border: 1px solid #333; background: transparent; color: #888; cursor: pointer;">取消</button>
+                        <button @click="saveApiBase" style="padding: 10px 20px; border-radius: 8px; border: none; background: linear-gradient(90deg, #00d9ff, #00ff88); color: #000; cursor: pointer; font-weight: bold;">保存</button>
+                    </div>
+                    <p style="margin-top: 15px; font-size: 0.8rem; color: #666;">
+                        提示：如果你使用Railway部署，地址格式为 https://xxx.up.railway.app
+                    </p>
+                </div>
+            </div>
             
             <div class="main-content">
                 <div class="video-section">
@@ -506,9 +529,15 @@
     <script>
         const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
         
-        const API_BASE = window.location.origin.includes('localhost') 
-    ? 'http://localhost:5000' 
-    : 'https://watermark-remover-api.onrender.com';
+        // 从localStorage或URL获取API地址
+        const getApiBase = () => {
+            const saved = localStorage.getItem('watermark_api_base');
+            if (saved) return saved;
+            if (window.location.origin.includes('localhost')) return 'http://localhost:5000';
+            return 'https://watermark-remover-api.onrender.com';
+        };
+        
+        let API_BASE = getApiBase();
         
         createApp({
             setup() {
@@ -530,6 +559,30 @@
                 const regions = ref([]);
                 
                 const currentMode = ref('box');
+                
+                // API配置
+                const apiBaseUrl = ref(API_BASE);
+                const showApiConfig = ref(false);
+                const apiConnected = ref(false);
+                
+                const saveApiBase = () => {
+                    API_BASE = apiBaseUrl.value;
+                    localStorage.setItem('watermark_api_base', apiBaseUrl.value);
+                    showApiConfig.value = false;
+                    checkApiConnection();
+                };
+                
+                const checkApiConnection = async () => {
+                    try {
+                        const res = await fetch(`${API_BASE}/health`);
+                        apiConnected.value = res.ok;
+                    } catch(e) {
+                        apiConnected.value = false;
+                    }
+                };
+                
+                // 初始化时检查API连接
+                checkApiConnection();
                 
                 // 绘图状态
                 let isDrawing = false;
@@ -858,6 +911,13 @@
                     regions,
                     
                     currentMode,
+                    
+                    // API配置
+                    apiBaseUrl,
+                    showApiConfig,
+                    apiConnected,
+                    saveApiBase,
+                    checkApiConnection,
                     
                     downloadUrl,
                     
