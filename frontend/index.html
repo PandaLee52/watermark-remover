@@ -506,7 +506,9 @@
     <script>
         const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
         
-        const API_BASE = 'https://watermark-remover-api.onrender.com';
+        const API_BASE = window.location.origin.includes('localhost') 
+    ? 'http://localhost:5000' 
+    : 'https://watermark-remover-api.onrender.com';
         
         createApp({
             setup() {
