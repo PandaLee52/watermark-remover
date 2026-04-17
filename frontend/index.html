@@ -534,7 +534,7 @@
             const saved = localStorage.getItem('watermark_api_base');
             if (saved) return saved;
             if (window.location.origin.includes('localhost')) return 'http://localhost:5000';
-            return 'https://watermark-remover-api.onrender.com';
+            return 'https://watermark-remover.onrender.com';
         };
         
         let API_BASE = getApiBase();

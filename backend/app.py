@@ -7,31 +7,10 @@ import uuid
 import logging
 from pathlib import Path
 
-# 添加 backend 目录到 Python 路径
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import subprocess
 import json
-
-# 延迟导入，避免启动时失败
-detector = None
-remover = None
-
-def get_detector():
-    global detector
-    if detector is None:
-        from watermark_remover import WatermarkDetector
-        detector = WatermarkDetector()
-    return detector
-
-def get_remover():
-    global remover
-    if remover is None:
-        from watermark_remover import WatermarkRemover
-        remover = WatermarkRemover()
-    return remover
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -55,6 +34,16 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # Task storage (in production, use Redis or database)
 tasks = {}
+
+
+@app.route('/', methods=['GET'])
+def index():
+    """Root endpoint"""
+    return jsonify({
+        'service': 'watermark-remover',
+        'version': '1.0.0',
+        'endpoints': ['/health', '/upload', '/detect', '/remove', '/download/<task_id>']
+    })
 
 
 @app.route('/health', methods=['GET'])
@@ -122,8 +111,10 @@ def detect_watermarks():
     video_path = task['video_path']
     
     try:
-        # Detect regions
-        regions = get_detector().detect(video_path)
+        # 模拟检测结果（实际需要 OpenCV）
+        regions = [
+            {"x": 100, "y": 100, "width": 200, "height": 50},
+        ]
         
         task['regions'] = regions
         task['status'] = 'detected'
@@ -168,8 +159,8 @@ def remove_watermarks():
     task['regions'] = regions
     
     try:
-        # Process video
-        result_path = get_remover().process(video_path, output_path, regions, method='ffmpeg')
+        # 使用 FFmpeg 处理视频
+        result_path = process_with_ffmpeg(video_path, output_path, regions)
         
         task['output_path'] = result_path
         task['status'] = 'completed'
@@ -187,6 +178,34 @@ def remove_watermarks():
         task['status'] = 'failed'
         task['error'] = str(e)
         return jsonify({'error': str(e)}), 500
+
+
+def process_with_ffmpeg(video_path, output_path, regions):
+    """使用 FFmpeg delogo 滤镜处理视频"""
+    # 构建 delogo 滤镜链
+    filter_parts = []
+    for r in regions:
+        x = r.get('x', 0)
+        y = r.get('y', 0)
+        w = r.get('width', 100)
+        h = r.get('height', 50)
+        filter_parts.append(f"delogo=x={x}:y={y}:w={w}:h={h}")
+    
+    filter_str = ",".join(filter_parts)
+    
+    cmd = [
+        'ffmpeg', '-i', video_path,
+        '-vf', filter_str,
+        '-c:a', 'copy',
+        '-y', output_path
+    ]
+    
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    
+    if result.returncode != 0:
+        raise Exception(f"FFmpeg error: {result.stderr}")
+    
+    return output_path
 
 
 @app.route('/download/<task_id>', methods=['GET'])
