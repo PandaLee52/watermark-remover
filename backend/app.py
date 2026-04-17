@@ -300,10 +300,17 @@ def process_with_ffmpeg(video_path, output_path, regions):
     # 构建 delogo 滤镜链
     filter_parts = []
     for r in regions:
-        x = r.get('x', 0)
-        y = r.get('y', 0)
-        w = r.get('width', 100)
-        h = r.get('height', 50)
+        # 兼容两种格式：字典 {x,y,width,height} 或数组 [x,y,width,height]
+        if isinstance(r, dict):
+            x = r.get('x', 0)
+            y = r.get('y', 0)
+            w = r.get('width', 100)
+            h = r.get('height', 50)
+        elif isinstance(r, (list, tuple)) and len(r) >= 4:
+            x, y, w, h = r[0], r[1], r[2], r[3]
+        else:
+            logger.warning(f"Unknown region format: {r}")
+            continue
         filter_parts.append(f"delogo=x={x}:y={y}:w={w}:h={h}")
     
     filter_str = ",".join(filter_parts)
