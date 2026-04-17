@@ -15,7 +15,23 @@ from flask_cors import CORS
 import subprocess
 import json
 
-from watermark_remover import WatermarkDetector, WatermarkRemover
+# 延迟导入，避免启动时失败
+detector = None
+remover = None
+
+def get_detector():
+    global detector
+    if detector is None:
+        from watermark_remover import WatermarkDetector
+        detector = WatermarkDetector()
+    return detector
+
+def get_remover():
+    global remover
+    if remover is None:
+        from watermark_remover import WatermarkRemover
+        remover = WatermarkRemover()
+    return remover
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,10 +52,6 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
-
-# Initialize processors
-detector = WatermarkDetector()
-remover = WatermarkRemover()
 
 # Task storage (in production, use Redis or database)
 tasks = {}
@@ -111,7 +123,7 @@ def detect_watermarks():
     
     try:
         # Detect regions
-        regions = detector.detect(video_path)
+        regions = get_detector().detect(video_path)
         
         task['regions'] = regions
         task['status'] = 'detected'
@@ -157,7 +169,7 @@ def remove_watermarks():
     
     try:
         # Process video
-        result_path = remover.process(video_path, output_path, regions, method='ffmpeg')
+        result_path = get_remover().process(video_path, output_path, regions, method='ffmpeg')
         
         task['output_path'] = result_path
         task['status'] = 'completed'
