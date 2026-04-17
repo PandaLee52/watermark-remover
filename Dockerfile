@@ -17,6 +17,7 @@ RUN pip install --upgrade pip setuptools wheel && pip install --no-cache-dir -r 
 
 # 复制应用代码
 COPY backend/ ./backend/
+COPY main.py .
 
 # 创建上传目录
 RUN mkdir -p /tmp/watermark_uploads /tmp/watermark_outputs
